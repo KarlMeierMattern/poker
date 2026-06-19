@@ -1,1378 +1,2080 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0d3b2e">
-  <meta name="description" content="Texas Hold'em hand rankings, evaluator, showdown compare, quiz, and odds.">
-  <title>Texas Hold'em Poker Toolkit</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon.svg">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --felt: #0d3b2e;
-      --felt-light: #145a44;
-      --felt-dark: #08261c;
-      --gold: #c9a84c;
-      --gold-bright: #e8c96a;
-      --gold-dim: #8a7340;
-      --cream: #f4efe4;
-      --cream-dim: #b8b0a0;
-      --card-white: #faf8f5;
-      --red: #c0392b;
-      --black: #1a1a1a;
-      --shadow: rgba(0, 0, 0, 0.45);
-    }
-
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'Outfit', sans-serif;
-      background: var(--felt-dark);
-      color: var(--cream);
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
-
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background:
-        radial-gradient(ellipse 80% 60% at 50% 0%, var(--felt-light) 0%, transparent 70%),
-        radial-gradient(ellipse 100% 80% at 50% 100%, var(--felt-dark) 0%, var(--felt) 50%);
-      z-index: -2;
-    }
-
-    body::after {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
-      opacity: 0.5;
-      pointer-events: none;
-      z-index: -1;
-    }
-
-    header {
-      text-align: center;
-      padding: 3rem 1.5rem 2rem;
-      position: relative;
-    }
-
-    header::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      width: min(600px, 80vw);
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--gold-dim), var(--gold), var(--gold-dim), transparent);
-    }
-
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 35% 35%, var(--gold-bright), var(--gold) 60%, var(--gold-dim));
-      border: 3px dashed var(--cream);
-      font-size: 1rem;
-      font-weight: 600;
-      color: var(--felt-dark);
-      margin-bottom: 1.25rem;
-      box-shadow: 0 4px 20px rgba(201, 168, 76, 0.3);
-    }
-
-    h1 {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: clamp(2.2rem, 5vw, 3.5rem);
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      line-height: 1.1;
-    }
-
-    h1 span {
-      display: block;
-      font-size: 0.45em;
-      font-weight: 500;
-      letter-spacing: 0.35em;
-      text-transform: uppercase;
-      color: var(--gold);
-      margin-top: 0.4rem;
-    }
-
-    .subtitle {
-      margin-top: 1rem;
-      font-size: 0.95rem;
-      font-weight: 300;
-      color: var(--cream-dim);
-      max-width: 520px;
-      margin-inline: auto;
-      line-height: 1.6;
-    }
-
-    main {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 2rem 1.5rem 4rem;
-      display: flex;
-      flex-direction: column;
-      gap: 2.5rem;
-    }
-
-    .section-label {
-      font-size: 0.7rem;
-      font-weight: 500;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      color: var(--gold);
-      margin-bottom: 1rem;
-    }
-
-    /* Quick lookup 2×5 */
-    .lookup-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      grid-template-rows: repeat(5, 1fr);
-      grid-auto-flow: column;
-      gap: 0.65rem;
-    }
-
-    .lookup-tile {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      align-items: center;
-      gap: 0.65rem;
-      padding: 0.75rem 0.9rem;
-      background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
-      border: 1px solid rgba(201, 168, 76, 0.12);
-      border-radius: 10px;
-      cursor: pointer;
-      text-align: left;
-      color: inherit;
-      font: inherit;
-      transition: border-color 0.25s ease, background 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
-    }
-
-    .lookup-tile:hover {
-      border-color: rgba(201, 168, 76, 0.35);
-      transform: translateY(-1px);
-    }
-
-    .lookup-tile.active {
-      border-color: var(--gold);
-      background: linear-gradient(135deg, rgba(201, 168, 76, 0.14) 0%, rgba(255,255,255,0.03) 100%);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255,255,255,0.06);
-    }
-
-    .lookup-tile.top-three .lookup-rank {
-      color: var(--gold-bright);
-    }
-
-    .lookup-rank {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--gold-dim);
-      min-width: 1.5rem;
-      text-align: center;
-      line-height: 1;
-    }
-
-    .lookup-name {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.05rem;
-      font-weight: 600;
-      line-height: 1.2;
-      flex: 1;
-    }
-
-    .lookup-short {
-      display: block;
-      font-family: 'Outfit', sans-serif;
-      font-size: 0.65rem;
-      font-weight: 300;
-      color: var(--cream-dim);
-      margin-top: 0.15rem;
-      letter-spacing: 0.02em;
-    }
-
-    .lookup-cards {
-      display: flex;
-      flex-shrink: 0;
-    }
-
-    .lookup-cards .card {
-      width: 24px;
-      height: 34px;
-      padding: 2px 3px;
-      border-radius: 4px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
-    }
-
-    .lookup-cards .card + .card {
-      margin-left: -7px;
-    }
-
-    .lookup-cards .card-rank {
-      font-size: 0.5rem;
-    }
-
-    .lookup-cards .card-suit {
-      font-size: 0.55rem;
-    }
-
-    .lookup-cards .card-rank-bottom {
-      display: none;
-    }
-
-    .lookup-cards .card.highlight {
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--gold);
-      z-index: 1;
-    }
-
-    .lookup-cards .card:not(.highlight) {
-      opacity: 0.7;
-    }
-
-    /* Carousel */
-    .carousel-panel {
-      background:
-        radial-gradient(ellipse 100% 60% at 50% 0%, rgba(201, 168, 76, 0.1) 0%, transparent 60%),
-        linear-gradient(160deg, rgba(20, 90, 68, 0.5) 0%, rgba(8, 38, 28, 0.8) 100%);
-      border: 1px solid rgba(201, 168, 76, 0.2);
-      border-radius: 18px;
-      padding: 1.5rem 1.25rem 1.25rem;
-      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.35);
-    }
-
-    .carousel-controls {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 1.25rem;
-      gap: 1rem;
-    }
-
-    .carousel-nav {
-      display: flex;
-      gap: 0.5rem;
-    }
-
-    .carousel-btn {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 1px solid rgba(201, 168, 76, 0.3);
-      background: rgba(0, 0, 0, 0.25);
-      color: var(--cream);
-      font-size: 1.1rem;
-      cursor: pointer;
-      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-    }
-
-    .carousel-btn:hover:not(:disabled) {
-      background: rgba(201, 168, 76, 0.2);
-      border-color: var(--gold);
-      color: var(--gold-bright);
-    }
-
-    .carousel-btn:disabled {
-      opacity: 0.3;
-      cursor: not-allowed;
-    }
-
-    .carousel-counter {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1rem;
-      color: var(--cream-dim);
-      letter-spacing: 0.08em;
-    }
-
-    .carousel-counter strong {
-      color: var(--gold-bright);
-      font-weight: 700;
-    }
-
-    .carousel-viewport {
-      overflow: hidden;
-      border-radius: 12px;
-    }
-
-    .carousel-track {
-      display: flex;
-      transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    .carousel-slide {
-      flex: 0 0 100%;
-      min-width: 100%;
-      padding: 0.5rem 0.25rem 0.25rem;
-    }
-
-    .slide-rank {
-      font-size: 0.75rem;
-      font-weight: 500;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      color: var(--gold);
-      margin-bottom: 0.35rem;
-    }
-
-    .slide-title {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: clamp(1.75rem, 4vw, 2.5rem);
-      font-weight: 700;
-      line-height: 1.1;
-      margin-bottom: 0.5rem;
-    }
-
-    .slide-desc {
-      font-size: 0.95rem;
-      font-weight: 300;
-      color: var(--cream-dim);
-      line-height: 1.55;
-      margin-bottom: 0.75rem;
-    }
-
-    .slide-tip {
-      font-size: 0.82rem;
-      color: var(--gold-dim);
-      line-height: 1.5;
-      padding-left: 0.85rem;
-      border-left: 2px solid rgba(201, 168, 76, 0.35);
-      margin-bottom: 1.5rem;
-    }
-
-    .slide-cards-wrap {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.85rem;
-      padding: 1.5rem 1rem;
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.04);
-    }
-
-    .slide-cards-label {
-      font-size: 0.65rem;
-      font-weight: 500;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--cream-dim);
-    }
-
-    .carousel-dots {
-      display: flex;
-      justify-content: center;
-      gap: 0.45rem;
-      margin-top: 1.25rem;
-      flex-wrap: wrap;
-    }
-
-    .carousel-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      border: none;
-      padding: 0;
-      background: rgba(201, 168, 76, 0.25);
-      cursor: pointer;
-      transition: background 0.2s ease, transform 0.2s ease;
-    }
-
-    .carousel-dot.active {
-      background: var(--gold-bright);
-      transform: scale(1.25);
-    }
-
-    .carousel-dot:hover:not(.active) {
-      background: rgba(201, 168, 76, 0.5);
-    }
-
-    /* Cards */
-    .cards {
-      display: flex;
-    }
-
-    .card {
-      width: 46px;
-      height: 64px;
-      background: var(--card-white);
-      border-radius: 6px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: space-between;
-      padding: 4px 5px;
-      box-shadow: 0 2px 8px var(--shadow), 0 0 0 1px rgba(0,0,0,0.08);
-      position: relative;
-    }
-
-    .card + .card {
-      margin-left: -8px;
-    }
-
-    .carousel-slide .card {
-      width: 72px;
-      height: 100px;
-      border-radius: 9px;
-      padding: 7px 8px;
-      box-shadow: 0 5px 18px rgba(0, 0, 0, 0.35);
-    }
-
-    .carousel-slide .card + .card {
-      margin-left: -12px;
-    }
-
-    .card-rank {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 0.95rem;
-      font-weight: 700;
-      line-height: 1;
-      align-self: flex-start;
-    }
-
-    .carousel-slide .card-rank,
-    .carousel-slide .card-rank-bottom {
-      font-size: 1.25rem;
-    }
-
-    .card-suit {
-      font-size: 1.1rem;
-      line-height: 1;
-    }
-
-    .carousel-slide .card-suit {
-      font-size: 1.5rem;
-    }
-
-    .card-rank-bottom {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 0.95rem;
-      font-weight: 700;
-      line-height: 1;
-      align-self: flex-end;
-      transform: rotate(180deg);
-    }
-
-    .red { color: var(--red); }
-    .black { color: var(--black); }
-
-    .card.highlight {
-      box-shadow: 0 2px 8px var(--shadow), 0 0 0 2px var(--gold);
-      z-index: 1;
-    }
-
-    .carousel-slide .card.highlight {
-      box-shadow: 0 5px 18px rgba(0, 0, 0, 0.35), 0 0 0 3px var(--gold);
-    }
-
-    .carousel-slide .card:not(.highlight) {
-      opacity: 0.55;
-    }
-
-    .slide-legend {
-      display: flex;
-      gap: 1.25rem;
-      font-size: 0.7rem;
-      color: var(--cream-dim);
-    }
-
-    .slide-legend span {
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-    }
-
-    .legend-dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 2px;
-      background: var(--card-white);
-    }
-
-    .legend-dot.highlight {
-      box-shadow: 0 0 0 2px var(--gold);
-    }
-
-    footer {
-      text-align: center;
-      padding: 1.5rem 1.5rem 2.5rem;
-      border-top: 1px solid rgba(201, 168, 76, 0.1);
-    }
-
-    footer p {
-      font-size: 0.78rem;
-      color: var(--cream-dim);
-      font-weight: 300;
-      letter-spacing: 0.05em;
-    }
-
-    /* Navigation */
-    .site-nav {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 0.4rem;
-      padding: 0 1rem 1.5rem;
-      max-width: 960px;
-      margin: 0 auto;
-    }
-
-    .nav-btn {
-      padding: 0.5rem 0.85rem;
-      border: 1px solid rgba(201, 168, 76, 0.2);
-      border-radius: 999px;
-      background: rgba(0, 0, 0, 0.2);
-      color: var(--cream-dim);
-      font-family: inherit;
-      font-size: 0.78rem;
-      font-weight: 500;
-      letter-spacing: 0.04em;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .nav-btn:hover { border-color: rgba(201, 168, 76, 0.45); color: var(--cream); }
-    .nav-btn.active {
-      background: rgba(201, 168, 76, 0.18);
-      border-color: var(--gold);
-      color: var(--gold-bright);
-    }
-
-    .panel { display: none; }
-    .panel.active { display: block; }
-
-    .tool-main {
-      max-width: 960px;
-      margin: 0 auto;
-      padding: 0 1.5rem 4rem;
-    }
-
-    .tool-panel {
-      background: linear-gradient(160deg, rgba(20, 90, 68, 0.45) 0%, rgba(8, 38, 28, 0.75) 100%);
-      border: 1px solid rgba(201, 168, 76, 0.2);
-      border-radius: 16px;
-      padding: 1.5rem;
-      margin-bottom: 1.25rem;
-    }
-
-    .tool-header {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 0.75rem;
-      margin-bottom: 1.25rem;
-    }
-
-    .tool-header h2 {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.75rem;
-      font-weight: 700;
-    }
-
-    .tool-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-
-    .action-btn {
-      padding: 0.45rem 0.9rem;
-      border-radius: 8px;
-      border: 1px solid rgba(201, 168, 76, 0.3);
-      background: rgba(0, 0, 0, 0.25);
-      color: var(--cream);
-      font-family: inherit;
-      font-size: 0.78rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .action-btn:hover { border-color: var(--gold); color: var(--gold-bright); }
-
-    .tool-hint {
-      font-size: 0.82rem;
-      color: var(--cream-dim);
-      margin-bottom: 1rem;
-      line-height: 1.5;
-    }
-
-    .slot-label {
-      font-size: 0.65rem;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: var(--gold-dim);
-      margin-bottom: 0.5rem;
-    }
-
-    .slot-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
-
-    .card-slot {
-      width: 46px;
-      height: 64px;
-      border: 1px dashed rgba(201, 168, 76, 0.35);
-      border-radius: 6px;
-      background: rgba(0, 0, 0, 0.2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      padding: 0;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .card-slot.active { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.25); }
-    .card-slot.filled { border-style: solid; border-color: rgba(201, 168, 76, 0.15); }
-    .slot-placeholder { color: var(--gold-dim); font-size: 1.25rem; }
-
-    .deck-grid {
-      display: grid;
-      grid-template-columns: repeat(13, 1fr);
-      gap: 0.35rem;
-    }
-
-    .picker-card {
-      cursor: pointer;
-      border: none;
-      font: inherit;
-    }
-
-    .picker-card:disabled, .picker-card.used {
-      opacity: 0.25;
-      cursor: not-allowed;
-    }
-
-    .picker-card:not(:disabled):hover { transform: translateY(-2px); }
-
-    .card.mini {
-      width: 46px;
-      height: 64px;
-    }
-
-    .card-slot .card.mini { pointer-events: none; }
-
-    .cards-lg .card {
-      width: 58px;
-      height: 82px;
-      border-radius: 8px;
-    }
-
-    .cards-lg .card + .card { margin-left: -10px; }
-
-    .result-box {
-      margin-top: 1.25rem;
-      padding: 1.25rem;
-      background: rgba(0, 0, 0, 0.22);
-      border-radius: 12px;
-      border: 1px solid rgba(201, 168, 76, 0.15);
-    }
-
-    .result-hand-name {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 2rem;
-      font-weight: 700;
-      color: var(--gold-bright);
-      margin-bottom: 0.25rem;
-    }
-
-    .result-detail { color: var(--cream-dim); font-size: 0.9rem; margin-bottom: 1rem; }
-
-    .result-section { margin-top: 1rem; }
-    .result-section .slot-label { margin-top: 0.5rem; }
-
-    .compare-players {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-      margin-bottom: 1rem;
-    }
-
-    .player-box {
-      padding: 1rem;
-      background: rgba(0, 0, 0, 0.15);
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .player-box h3 {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.15rem;
-      margin-bottom: 0.75rem;
-      color: var(--gold);
-    }
-
-    .cmp-verdict {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: var(--gold-bright);
-      margin-bottom: 0.35rem;
-    }
-
-    .cmp-detail { color: var(--cream-dim); font-size: 0.88rem; margin-bottom: 1rem; }
-
-    .cmp-hands {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-    }
-
-    .cmp-hand-label {
-      font-size: 0.75rem;
-      color: var(--cream-dim);
-      margin-bottom: 0.35rem;
-    }
-
-    .cmp-hand-name {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.2rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-    }
-
-    .quiz-stats {
-      display: flex;
-      gap: 1.5rem;
-      flex-wrap: wrap;
-      margin-bottom: 1rem;
-      font-size: 0.85rem;
-      color: var(--cream-dim);
-    }
-
-    .quiz-stats strong { color: var(--gold-bright); }
-
-    .quiz-options {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.65rem;
-      margin-top: 1.25rem;
-    }
-
-    .quiz-option {
-      padding: 0.85rem 1rem;
-      border-radius: 10px;
-      border: 1px solid rgba(201, 168, 76, 0.2);
-      background: rgba(0, 0, 0, 0.25);
-      color: var(--cream);
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 1.05rem;
-      font-weight: 600;
-      cursor: pointer;
-      text-align: left;
-      transition: all 0.2s ease;
-    }
-
-    .quiz-option:hover:not(:disabled) { border-color: var(--gold); }
-    .quiz-option.correct { border-color: #2ecc71; background: rgba(46, 204, 113, 0.15); }
-    .quiz-option.wrong { border-color: #e74c3c; background: rgba(231, 76, 60, 0.12); }
-    .quiz-option:disabled { cursor: default; }
-
-    .quiz-feedback {
-      margin-top: 1rem;
-      padding: 0.75rem 1rem;
-      border-radius: 8px;
-      font-size: 0.9rem;
-    }
-
-    .quiz-feedback.ok { background: rgba(46, 204, 113, 0.12); color: #8fe4b0; }
-    .quiz-feedback.bad { background: rgba(231, 76, 60, 0.1); color: #f0a99f; }
-
-    .data-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 0.85rem;
-    }
-
-    .data-table th, .data-table td {
-      padding: 0.65rem 0.75rem;
-      text-align: left;
-      border-bottom: 1px solid rgba(201, 168, 76, 0.12);
-    }
-
-    .data-table th {
-      font-size: 0.65rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--gold-dim);
-      font-weight: 500;
-    }
-
-    .data-table tr:hover td { background: rgba(255, 255, 255, 0.03); }
-
-    .print-note {
-      font-size: 0.82rem;
-      color: var(--cream-dim);
-      margin-top: 1rem;
-      line-height: 1.5;
-    }
-
-    @media print {
-      body::before, body::after, header, .site-nav, footer, .carousel-section, .no-print { display: none !important; }
-      body { background: #fff; color: #000; }
-      .panel { display: none !important; }
-      #panel-rankings { display: block !important; }
-      main { padding: 0; max-width: 100%; }
-      .lookup-grid { gap: 0.4rem; }
-      .lookup-tile { border: 1px solid #ccc; background: #fff; break-inside: avoid; }
-      .lookup-rank, .lookup-name { color: #000 !important; }
-      .lookup-short { color: #555 !important; }
-      .card { box-shadow: none !important; border: 1px solid #ddd; }
-    }
-
-    @media (max-width: 560px) {
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0d3b2e" />
+    <meta
+      name="description"
+      content="Texas Hold'em hand rankings, evaluator, showdown compare, quiz, and odds."
+    />
+    <title>Texas Hold'em Poker Toolkit</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500&family=Outfit:wght@300;400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --felt: #0d3b2e;
+        --felt-light: #145a44;
+        --felt-dark: #08261c;
+        --gold: #c9a84c;
+        --gold-bright: #e8c96a;
+        --gold-dim: #8a7340;
+        --cream: #f4efe4;
+        --cream-dim: #b8b0a0;
+        --card-white: #faf8f5;
+        --red: #c0392b;
+        --black: #1a1a1a;
+        --shadow: rgba(0, 0, 0, 0.45);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Outfit", sans-serif;
+        background: var(--felt-dark);
+        color: var(--cream);
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background:
+          radial-gradient(
+            ellipse 80% 60% at 50% 0%,
+            var(--felt-light) 0%,
+            transparent 70%
+          ),
+          radial-gradient(
+            ellipse 100% 80% at 50% 100%,
+            var(--felt-dark) 0%,
+            var(--felt) 50%
+          );
+        z-index: -2;
+      }
+
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+        opacity: 0.5;
+        pointer-events: none;
+        z-index: -1;
+      }
+
+      header {
+        text-align: center;
+        padding: 3rem 1.5rem 2rem;
+        position: relative;
+      }
+
+      header::after {
+        content: "";
+        position: absolute;
+        bottom: 1.25rem;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(600px, 80vw);
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--gold-dim),
+          var(--gold),
+          var(--gold-dim),
+          transparent
+        );
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle at 35% 35%,
+          var(--gold-bright),
+          var(--gold) 60%,
+          var(--gold-dim)
+        );
+        border: 3px dashed var(--cream);
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--felt-dark);
+        margin-bottom: 1.25rem;
+        box-shadow: 0 4px 20px rgba(201, 168, 76, 0.3);
+      }
+
+      h1 {
+        font-family: "Cormorant Garamond", serif;
+        font-size: clamp(2.2rem, 5vw, 3.5rem);
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        line-height: 1.1;
+      }
+
+      h1 span {
+        display: block;
+        font-size: 0.45em;
+        font-weight: 500;
+        letter-spacing: 0.35em;
+        text-transform: uppercase;
+        color: var(--gold);
+        margin-top: 0.4rem;
+      }
+
+      .subtitle {
+        margin-top: 1rem;
+        font-size: 0.95rem;
+        font-weight: 300;
+        color: var(--cream-dim);
+        max-width: 520px;
+        margin-inline: auto;
+        line-height: 1.6;
+      }
+
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 2rem 1.5rem 4rem;
+        display: flex;
+        flex-direction: column;
+        gap: 2.5rem;
+      }
+
+      .section-label {
+        font-size: 0.7rem;
+        font-weight: 500;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--gold);
+        margin-bottom: 1rem;
+      }
+
+      /* Quick lookup 2×5 */
       .lookup-grid {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto;
-        grid-auto-flow: row;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-rows: repeat(5, 1fr);
+        grid-auto-flow: column;
+        gap: 0.65rem;
       }
 
       .lookup-tile {
-        padding: 0.65rem 0.8rem;
+        display: grid;
         grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.75rem 0.9rem;
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.05) 0%,
+          rgba(255, 255, 255, 0.01) 100%
+        );
+        border: 1px solid rgba(201, 168, 76, 0.12);
+        border-radius: 10px;
+        cursor: pointer;
+        text-align: left;
+        color: inherit;
+        font: inherit;
+        transition:
+          border-color 0.25s ease,
+          background 0.25s ease,
+          transform 0.25s ease,
+          box-shadow 0.25s ease;
+      }
+
+      .lookup-tile:hover {
+        border-color: rgba(201, 168, 76, 0.35);
+        transform: translateY(-1px);
+      }
+
+      .lookup-tile.active {
+        border-color: var(--gold);
+        background: linear-gradient(
+          135deg,
+          rgba(201, 168, 76, 0.14) 0%,
+          rgba(255, 255, 255, 0.03) 100%
+        );
+        box-shadow:
+          0 4px 20px rgba(0, 0, 0, 0.25),
+          inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      }
+
+      .lookup-tile.top-three .lookup-rank {
+        color: var(--gold-bright);
+      }
+
+      .lookup-rank {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--gold-dim);
+        min-width: 1.5rem;
+        text-align: center;
+        line-height: 1;
+      }
+
+      .lookup-name {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1.05rem;
+        font-weight: 600;
+        line-height: 1.2;
+        flex: 1;
+      }
+
+      .lookup-short {
+        display: block;
+        font-family: "Outfit", sans-serif;
+        font-size: 0.65rem;
+        font-weight: 300;
+        color: var(--cream-dim);
+        margin-top: 0.15rem;
+        letter-spacing: 0.02em;
+      }
+
+      .lookup-cards {
+        display: flex;
+        flex-shrink: 0;
       }
 
       .lookup-cards .card {
-        width: 20px;
-        height: 28px;
+        width: 24px;
+        height: 34px;
+        padding: 2px 3px;
+        border-radius: 4px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
       }
 
       .lookup-cards .card + .card {
-        margin-left: -6px;
+        margin-left: -7px;
+      }
+
+      .lookup-cards .card-rank {
+        font-size: 0.5rem;
+      }
+
+      .lookup-cards .card-suit {
+        font-size: 0.55rem;
+      }
+
+      .lookup-cards .card-rank-bottom {
+        display: none;
+      }
+
+      .lookup-cards .card.highlight {
+        box-shadow:
+          0 1px 4px rgba(0, 0, 0, 0.35),
+          0 0 0 1px var(--gold);
+        z-index: 1;
+      }
+
+      .lookup-cards .card:not(.highlight) {
+        opacity: 0.7;
+      }
+
+      /* Carousel */
+      .carousel-panel {
+        background:
+          radial-gradient(
+            ellipse 100% 60% at 50% 0%,
+            rgba(201, 168, 76, 0.1) 0%,
+            transparent 60%
+          ),
+          linear-gradient(
+            160deg,
+            rgba(20, 90, 68, 0.5) 0%,
+            rgba(8, 38, 28, 0.8) 100%
+          );
+        border: 1px solid rgba(201, 168, 76, 0.2);
+        border-radius: 18px;
+        padding: 1.5rem 1.25rem 1.25rem;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.35);
+      }
+
+      .carousel-controls {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.25rem;
+        gap: 1rem;
+      }
+
+      .carousel-nav {
+        display: flex;
+        gap: 0.5rem;
+      }
+
+      .carousel-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 1px solid rgba(201, 168, 76, 0.3);
+        background: rgba(0, 0, 0, 0.25);
+        color: var(--cream);
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition:
+          background 0.2s ease,
+          border-color 0.2s ease,
+          color 0.2s ease;
+      }
+
+      .carousel-btn:hover:not(:disabled) {
+        background: rgba(201, 168, 76, 0.2);
+        border-color: var(--gold);
+        color: var(--gold-bright);
+      }
+
+      .carousel-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+
+      .carousel-counter {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1rem;
+        color: var(--cream-dim);
+        letter-spacing: 0.08em;
+      }
+
+      .carousel-counter strong {
+        color: var(--gold-bright);
+        font-weight: 700;
+      }
+
+      .carousel-viewport {
+        overflow: hidden;
+        border-radius: 12px;
+      }
+
+      .carousel-track {
+        display: flex;
+        transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .carousel-slide {
+        flex: 0 0 100%;
+        min-width: 100%;
+        padding: 0.5rem 0.25rem 0.25rem;
+      }
+
+      .slide-rank {
+        font-size: 0.75rem;
+        font-weight: 500;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--gold);
+        margin-bottom: 0.35rem;
+      }
+
+      .slide-title {
+        font-family: "Cormorant Garamond", serif;
+        font-size: clamp(1.75rem, 4vw, 2.5rem);
+        font-weight: 700;
+        line-height: 1.1;
+        margin-bottom: 0.5rem;
+      }
+
+      .slide-desc {
+        font-size: 0.95rem;
+        font-weight: 300;
+        color: var(--cream-dim);
+        line-height: 1.55;
+        margin-bottom: 0.75rem;
+      }
+
+      .slide-tip {
+        font-size: 0.82rem;
+        color: var(--gold-dim);
+        line-height: 1.5;
+        padding-left: 0.85rem;
+        border-left: 2px solid rgba(201, 168, 76, 0.35);
+        margin-bottom: 1.5rem;
+      }
+
+      .slide-cards-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.85rem;
+        padding: 1.5rem 1rem;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.04);
+      }
+
+      .slide-cards-label {
+        font-size: 0.65rem;
+        font-weight: 500;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--cream-dim);
+      }
+
+      .carousel-dots {
+        display: flex;
+        justify-content: center;
+        gap: 0.45rem;
+        margin-top: 1.25rem;
+        flex-wrap: wrap;
+      }
+
+      .carousel-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        border: none;
+        padding: 0;
+        background: rgba(201, 168, 76, 0.25);
+        cursor: pointer;
+        transition:
+          background 0.2s ease,
+          transform 0.2s ease;
+      }
+
+      .carousel-dot.active {
+        background: var(--gold-bright);
+        transform: scale(1.25);
+      }
+
+      .carousel-dot:hover:not(.active) {
+        background: rgba(201, 168, 76, 0.5);
+      }
+
+      /* Cards */
+      .cards {
+        display: flex;
+      }
+
+      .card {
+        width: 46px;
+        height: 64px;
+        background: var(--card-white);
+        border-radius: 6px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        padding: 4px 5px;
+        box-shadow:
+          0 2px 8px var(--shadow),
+          0 0 0 1px rgba(0, 0, 0, 0.08);
+        position: relative;
+      }
+
+      .card + .card {
+        margin-left: -8px;
       }
 
       .carousel-slide .card {
-        width: 54px;
-        height: 76px;
-        padding: 5px 6px;
+        width: 72px;
+        height: 100px;
+        border-radius: 9px;
+        padding: 7px 8px;
+        box-shadow: 0 5px 18px rgba(0, 0, 0, 0.35);
       }
 
       .carousel-slide .card + .card {
-        margin-left: -9px;
+        margin-left: -12px;
+      }
+
+      .card-rank {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 0.95rem;
+        font-weight: 700;
+        line-height: 1;
+        align-self: flex-start;
       }
 
       .carousel-slide .card-rank,
       .carousel-slide .card-rank-bottom {
-        font-size: 1rem;
+        font-size: 1.25rem;
+      }
+
+      .card-suit {
+        font-size: 1.1rem;
+        line-height: 1;
       }
 
       .carousel-slide .card-suit {
-        font-size: 1.15rem;
+        font-size: 1.5rem;
       }
 
-      .deck-grid { grid-template-columns: repeat(7, 1fr); }
-      .compare-players, .cmp-hands, .quiz-options { grid-template-columns: 1fr; }
-    }
-  </style>
-</head>
-<body>
+      .card-rank-bottom {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 0.95rem;
+        font-weight: 700;
+        line-height: 1;
+        align-self: flex-end;
+        transform: rotate(180deg);
+      }
 
-  <header>
-    <div class="chip">♠</div>
-    <h1>Texas Hold'em<span>Poker Toolkit</span></h1>
-    <p class="subtitle">Rankings, hand evaluator, showdown compare, quiz drill, and odds — everything for the table.</p>
-  </header>
+      .red {
+        color: var(--red);
+      }
+      .black {
+        color: var(--black);
+      }
 
-  <nav class="site-nav no-print" aria-label="Main navigation">
-    <button class="nav-btn active" data-panel="rankings" type="button">Rankings</button>
-    <button class="nav-btn" data-panel="evaluate" type="button">Evaluate</button>
-    <button class="nav-btn" data-panel="compare" type="button">Compare</button>
-    <button class="nav-btn" data-panel="quiz" type="button">Quiz</button>
-    <button class="nav-btn" data-panel="odds" type="button">Odds</button>
-    <button class="nav-btn" type="button" onclick="window.print()">Print</button>
-  </nav>
+      .card.highlight {
+        box-shadow:
+          0 2px 8px var(--shadow),
+          0 0 0 2px var(--gold);
+        z-index: 1;
+      }
 
-  <section class="panel active" id="panel-rankings">
-  <main>
-    <section class="lookup-section" aria-label="Quick lookup">
-      <p class="section-label">Quick lookup</p>
-      <div class="lookup-grid" id="lookup-grid">
-        <button class="lookup-tile top-three active" data-index="0" type="button">
-          <span class="lookup-rank">1</span>
-          <span class="lookup-name">Royal Flush<span class="lookup-short">A-K-Q-J-10 suited</span></span>
-          <span class="lookup-cards cards" aria-hidden="true">
-            <span class="card highlight red"><span class="card-rank red">A</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">A</span></span>
-            <span class="card highlight red"><span class="card-rank red">K</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">K</span></span>
-            <span class="card highlight red"><span class="card-rank red">Q</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">Q</span></span>
-            <span class="card highlight red"><span class="card-rank red">J</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">J</span></span>
-            <span class="card highlight red"><span class="card-rank red">10</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">10</span></span>
-          </span>
-        </button>
-        <button class="lookup-tile top-three" data-index="1" type="button">
-          <span class="lookup-rank">2</span>
-          <span class="lookup-name">Straight Flush<span class="lookup-short">Five in a row, one suit</span></span>
-          <span class="lookup-cards cards" aria-hidden="true">
-            <span class="card highlight black"><span class="card-rank black">9</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">9</span></span>
-            <span class="card highlight black"><span class="card-rank black">8</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">8</span></span>
-            <span class="card highlight black"><span class="card-rank black">7</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">7</span></span>
-            <span class="card highlight black"><span class="card-rank black">6</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">6</span></span>
-            <span class="card highlight black"><span class="card-rank black">5</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">5</span></span>
-          </span>
-        </button>
-        <button class="lookup-tile top-three" data-index="2" type="button">
-          <span class="lookup-rank">3</span>
-          <span class="lookup-name">Four of a Kind<span class="lookup-short">Quads + kicker</span></span>
-          <span class="lookup-cards cards" aria-hidden="true">
-            <span class="card highlight red"><span class="card-rank red">Q</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">Q</span></span>
-            <span class="card highlight black"><span class="card-rank black">Q</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">Q</span></span>
-            <span class="card highlight red"><span class="card-rank red">Q</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">Q</span></span>
-            <span class="card highlight black"><span class="card-rank black">Q</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">Q</span></span>
-            <span class="card"><span class="card-rank black">3</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">3</span></span>
-          </span>
-        </button>
-        <button class="lookup-tile" data-index="3" type="button">
-          <span class="lookup-rank">4</span>
-          <span class="lookup-name">Full House<span class="lookup-short">Three + a pair</span></span>
-          <span class="lookup-cards cards" aria-hidden="true">
-            <span class="card highlight red"><span class="card-rank red">J</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">J</span></span>
-            <span class="card highlight black"><span class="card-rank black">J</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">J</span></span>
-            <span class="card highlight red"><span class="card-rank red">J</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">J</span></span>
-            <span class="card highlight black"><span class="card-rank black">4</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">4</span></span>
-            <span class="card highlight red"><span class="card-rank red">4</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">4</span></span>
-          </span>
-        </button>
-        <button class="lookup-tile" data-index="4" type="button">
-          <span class="lookup-rank">5</span>
-          <span class="lookup-name">Flush<span class="lookup-short">Five same suit</span></span>
-          <span class="lookup-cards cards" aria-hidden="true">
-            <span class="card highlight red"><span class="card-rank red">A</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">A</span></span>
-            <span class="card highlight red"><span class="card-rank red">J</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">J</span></span>
-            <span class="card highlight red"><span class="card-rank red">9</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">9</span></span>
-            <span class="card highlight red"><span class="card-rank red">6</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">6</span></span>
-            <span class="card highlight red"><span class="card-rank red">2</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">2</span></span>
-          </span>
-        </button>
-        <button class="lookup-tile" data-index="5" type="button">
-          <span class="lookup-rank">6</span>
-          <span class="lookup-name">Straight<span class="lookup-short">Five in a row</span></span>
-          <span class="lookup-cards cards" aria-hidden="true">
-            <span class="card highlight black"><span class="card-rank black">10</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">10</span></span>
-            <span class="card highlight red"><span class="card-rank red">9</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">9</span></span>
-            <span class="card highlight black"><span class="card-rank black">8</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">8</span></span>
-            <span class="card highlight red"><span class="card-rank red">7</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">7</span></span>
-            <span class="card highlight black"><span class="card-rank black">6</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">6</span></span>
-          </span>
-        </button>
-        <button class="lookup-tile" data-index="6" type="button">
-          <span class="lookup-rank">7</span>
-          <span class="lookup-name">Three of a Kind<span class="lookup-short">Trips or a set</span></span>
-          <span class="lookup-cards cards" aria-hidden="true">
-            <span class="card highlight red"><span class="card-rank red">8</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">8</span></span>
-            <span class="card highlight black"><span class="card-rank black">8</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">8</span></span>
-            <span class="card highlight red"><span class="card-rank red">8</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">8</span></span>
-            <span class="card"><span class="card-rank black">K</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">K</span></span>
-            <span class="card"><span class="card-rank red">2</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">2</span></span>
-          </span>
-        </button>
-        <button class="lookup-tile" data-index="7" type="button">
-          <span class="lookup-rank">8</span>
-          <span class="lookup-name">Two Pair<span class="lookup-short">Two pairs + kicker</span></span>
-          <span class="lookup-cards cards" aria-hidden="true">
-            <span class="card highlight black"><span class="card-rank black">A</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">A</span></span>
-            <span class="card highlight red"><span class="card-rank red">A</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">A</span></span>
-            <span class="card highlight black"><span class="card-rank black">5</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">5</span></span>
-            <span class="card highlight red"><span class="card-rank red">5</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">5</span></span>
-            <span class="card"><span class="card-rank black">9</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">9</span></span>
-          </span>
-        </button>
-        <button class="lookup-tile" data-index="8" type="button">
-          <span class="lookup-rank">9</span>
-          <span class="lookup-name">One Pair<span class="lookup-short">Pair + three cards</span></span>
-          <span class="lookup-cards cards" aria-hidden="true">
-            <span class="card highlight red"><span class="card-rank red">K</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">K</span></span>
-            <span class="card highlight black"><span class="card-rank black">K</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">K</span></span>
-            <span class="card"><span class="card-rank black">Q</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">Q</span></span>
-            <span class="card"><span class="card-rank red">7</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">7</span></span>
-            <span class="card"><span class="card-rank black">3</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">3</span></span>
-          </span>
-        </button>
-        <button class="lookup-tile" data-index="9" type="button">
-          <span class="lookup-rank">10</span>
-          <span class="lookup-name">High Card<span class="lookup-short">Nothing connects</span></span>
-          <span class="lookup-cards cards" aria-hidden="true">
-            <span class="card highlight black"><span class="card-rank black">A</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">A</span></span>
-            <span class="card"><span class="card-rank red">J</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">J</span></span>
-            <span class="card"><span class="card-rank black">9</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">9</span></span>
-            <span class="card"><span class="card-rank red">6</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">6</span></span>
-            <span class="card"><span class="card-rank black">2</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">2</span></span>
-          </span>
-        </button>
+      .carousel-slide .card.highlight {
+        box-shadow:
+          0 5px 18px rgba(0, 0, 0, 0.35),
+          0 0 0 3px var(--gold);
+      }
+
+      .carousel-slide .card:not(.highlight) {
+        opacity: 0.55;
+      }
+
+      .slide-legend {
+        display: flex;
+        gap: 1.25rem;
+        font-size: 0.7rem;
+        color: var(--cream-dim);
+      }
+
+      .slide-legend span {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+
+      .legend-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 2px;
+        background: var(--card-white);
+      }
+
+      .legend-dot.highlight {
+        box-shadow: 0 0 0 2px var(--gold);
+      }
+
+      footer {
+        text-align: center;
+        padding: 1.5rem 1.5rem 2.5rem;
+        border-top: 1px solid rgba(201, 168, 76, 0.1);
+      }
+
+      footer p {
+        font-size: 0.78rem;
+        color: var(--cream-dim);
+        font-weight: 300;
+        letter-spacing: 0.05em;
+      }
+
+      /* Navigation */
+      .site-nav {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.4rem;
+        padding: 0 1rem 1.5rem;
+        max-width: 960px;
+        margin: 0 auto;
+      }
+
+      .nav-btn {
+        padding: 0.5rem 0.85rem;
+        border: 1px solid rgba(201, 168, 76, 0.2);
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.2);
+        color: var(--cream-dim);
+        font-family: inherit;
+        font-size: 0.78rem;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .nav-btn:hover {
+        border-color: rgba(201, 168, 76, 0.45);
+        color: var(--cream);
+      }
+      .nav-btn.active {
+        background: rgba(201, 168, 76, 0.18);
+        border-color: var(--gold);
+        color: var(--gold-bright);
+      }
+
+      .panel {
+        display: none;
+      }
+      .panel.active {
+        display: block;
+      }
+
+      .tool-main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 0 1.5rem 4rem;
+      }
+
+      .tool-panel {
+        background: linear-gradient(
+          160deg,
+          rgba(20, 90, 68, 0.45) 0%,
+          rgba(8, 38, 28, 0.75) 100%
+        );
+        border: 1px solid rgba(201, 168, 76, 0.2);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+      }
+
+      .tool-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+      }
+
+      .tool-header h2 {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1.75rem;
+        font-weight: 700;
+      }
+
+      .tool-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+
+      .action-btn {
+        padding: 0.45rem 0.9rem;
+        border-radius: 8px;
+        border: 1px solid rgba(201, 168, 76, 0.3);
+        background: rgba(0, 0, 0, 0.25);
+        color: var(--cream);
+        font-family: inherit;
+        font-size: 0.78rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .action-btn:hover {
+        border-color: var(--gold);
+        color: var(--gold-bright);
+      }
+
+      .tool-hint {
+        font-size: 0.82rem;
+        color: var(--cream-dim);
+        margin-bottom: 1rem;
+        line-height: 1.5;
+      }
+
+      .slot-label {
+        font-size: 0.65rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--gold-dim);
+        margin-bottom: 0.5rem;
+      }
+
+      .slot-row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+      }
+
+      .card-slot {
+        width: 46px;
+        height: 64px;
+        border: 1px dashed rgba(201, 168, 76, 0.35);
+        border-radius: 6px;
+        background: rgba(0, 0, 0, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        padding: 0;
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+
+      .card-slot.active {
+        border-color: var(--gold);
+        box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.25);
+      }
+      .card-slot.filled {
+        border-style: solid;
+        border-color: rgba(201, 168, 76, 0.15);
+      }
+      .slot-placeholder {
+        color: var(--gold-dim);
+        font-size: 1.25rem;
+      }
+
+      .deck-grid {
+        display: grid;
+        grid-template-columns: repeat(13, 1fr);
+        gap: 0.35rem;
+      }
+
+      .picker-card {
+        cursor: pointer;
+        border: none;
+        font: inherit;
+      }
+
+      .picker-card:disabled,
+      .picker-card.used {
+        opacity: 0.25;
+        cursor: not-allowed;
+      }
+
+      .picker-card:not(:disabled):hover {
+        transform: translateY(-2px);
+      }
+
+      .card.mini {
+        width: 46px;
+        height: 64px;
+      }
+
+      .card-slot .card.mini {
+        pointer-events: none;
+      }
+
+      .cards-lg .card {
+        width: 58px;
+        height: 82px;
+        border-radius: 8px;
+      }
+
+      .cards-lg .card + .card {
+        margin-left: -10px;
+      }
+
+      .result-box {
+        margin-top: 1.25rem;
+        padding: 1.25rem;
+        background: rgba(0, 0, 0, 0.22);
+        border-radius: 12px;
+        border: 1px solid rgba(201, 168, 76, 0.15);
+      }
+
+      .result-hand-name {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--gold-bright);
+        margin-bottom: 0.25rem;
+      }
+
+      .result-detail {
+        color: var(--cream-dim);
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+      }
+
+      .result-section {
+        margin-top: 1rem;
+      }
+      .result-section .slot-label {
+        margin-top: 0.5rem;
+      }
+
+      .compare-players {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .player-box {
+        padding: 1rem;
+        background: rgba(0, 0, 0, 0.15);
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .player-box h3 {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1.15rem;
+        margin-bottom: 0.75rem;
+        color: var(--gold);
+      }
+
+      .cmp-verdict {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--gold-bright);
+        margin-bottom: 0.35rem;
+      }
+
+      .cmp-detail {
+        color: var(--cream-dim);
+        font-size: 0.88rem;
+        margin-bottom: 1rem;
+      }
+
+      .cmp-hands {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+
+      .cmp-hand-label {
+        font-size: 0.75rem;
+        color: var(--cream-dim);
+        margin-bottom: 0.35rem;
+      }
+
+      .cmp-hand-name {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1.2rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+      }
+
+      .quiz-stats {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+        font-size: 0.85rem;
+        color: var(--cream-dim);
+      }
+
+      .quiz-stats strong {
+        color: var(--gold-bright);
+      }
+
+      .quiz-options {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.65rem;
+        margin-top: 1.25rem;
+      }
+
+      .quiz-option {
+        padding: 0.85rem 1rem;
+        border-radius: 10px;
+        border: 1px solid rgba(201, 168, 76, 0.2);
+        background: rgba(0, 0, 0, 0.25);
+        color: var(--cream);
+        font-family: "Cormorant Garamond", serif;
+        font-size: 1.05rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: left;
+        transition: all 0.2s ease;
+      }
+
+      .quiz-option:hover:not(:disabled) {
+        border-color: var(--gold);
+      }
+      .quiz-option.correct {
+        border-color: #2ecc71;
+        background: rgba(46, 204, 113, 0.15);
+      }
+      .quiz-option.wrong {
+        border-color: #e74c3c;
+        background: rgba(231, 76, 60, 0.12);
+      }
+      .quiz-option:disabled {
+        cursor: default;
+      }
+
+      .quiz-feedback {
+        margin-top: 1rem;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+      }
+
+      .quiz-feedback.ok {
+        background: rgba(46, 204, 113, 0.12);
+        color: #8fe4b0;
+      }
+      .quiz-feedback.bad {
+        background: rgba(231, 76, 60, 0.1);
+        color: #f0a99f;
+      }
+
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+
+      .data-table th,
+      .data-table td {
+        padding: 0.65rem 0.75rem;
+        text-align: left;
+        border-bottom: 1px solid rgba(201, 168, 76, 0.12);
+      }
+
+      .data-table th {
+        font-size: 0.65rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--gold-dim);
+        font-weight: 500;
+      }
+
+      .data-table tr:hover td {
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      @media (max-width: 560px) {
+        .lookup-grid {
+          grid-template-columns: 1fr;
+          grid-template-rows: auto;
+          grid-auto-flow: row;
+        }
+
+        .lookup-tile {
+          padding: 0.65rem 0.8rem;
+          grid-template-columns: auto 1fr auto;
+        }
+
+        .lookup-cards .card {
+          width: 20px;
+          height: 28px;
+        }
+
+        .lookup-cards .card + .card {
+          margin-left: -6px;
+        }
+
+        .carousel-slide .card {
+          width: 54px;
+          height: 76px;
+          padding: 5px 6px;
+        }
+
+        .carousel-slide .card + .card {
+          margin-left: -9px;
+        }
+
+        .carousel-slide .card-rank,
+        .carousel-slide .card-rank-bottom {
+          font-size: 1rem;
+        }
+
+        .carousel-slide .card-suit {
+          font-size: 1.15rem;
+        }
+
+        .deck-grid {
+          grid-template-columns: repeat(7, 1fr);
+        }
+        .compare-players,
+        .cmp-hands,
+        .quiz-options {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="chip">♠</div>
+      <h1>Texas Hold'em<span>Poker Toolkit</span></h1>
+      <p class="subtitle">
+        Rankings, hand evaluator, showdown compare, quiz drill, and odds
+      </p>
+    </header>
+
+    <nav class="site-nav" aria-label="Main navigation">
+      <button class="nav-btn active" data-panel="rankings" type="button">
+        Rankings
+      </button>
+      <button class="nav-btn" data-panel="evaluate" type="button">
+        Evaluate
+      </button>
+      <button class="nav-btn" data-panel="compare" type="button">
+        Compare
+      </button>
+      <button class="nav-btn" data-panel="quiz" type="button">Quiz</button>
+      <button class="nav-btn" data-panel="odds" type="button">Odds</button>
+    </nav>
+
+    <section class="panel active" id="panel-rankings">
+      <main>
+        <section class="lookup-section" aria-label="Quick lookup">
+          <p class="section-label">Quick lookup</p>
+          <div class="lookup-grid" id="lookup-grid">
+            <button
+              class="lookup-tile top-three active"
+              data-index="0"
+              type="button"
+            >
+              <span class="lookup-rank">1</span>
+              <span class="lookup-name"
+                >Royal Flush<span class="lookup-short"
+                  >A-K-Q-J-10 suited</span
+                ></span
+              >
+              <span class="lookup-cards cards" aria-hidden="true">
+                <span class="card highlight red"
+                  ><span class="card-rank red">A</span
+                  ><span class="card-suit red">♥</span
+                  ><span class="card-rank-bottom red">A</span></span
+                >
+                <span class="card highlight red"
+                  ><span class="card-rank red">K</span
+                  ><span class="card-suit red">♥</span
+                  ><span class="card-rank-bottom red">K</span></span
+                >
+                <span class="card highlight red"
+                  ><span class="card-rank red">Q</span
+                  ><span class="card-suit red">♥</span
+                  ><span class="card-rank-bottom red">Q</span></span
+                >
+                <span class="card highlight red"
+                  ><span class="card-rank red">J</span
+                  ><span class="card-suit red">♥</span
+                  ><span class="card-rank-bottom red">J</span></span
+                >
+                <span class="card highlight red"
+                  ><span class="card-rank red">10</span
+                  ><span class="card-suit red">♥</span
+                  ><span class="card-rank-bottom red">10</span></span
+                >
+              </span>
+            </button>
+            <button class="lookup-tile top-three" data-index="1" type="button">
+              <span class="lookup-rank">2</span>
+              <span class="lookup-name"
+                >Straight Flush<span class="lookup-short"
+                  >Five in a row, one suit</span
+                ></span
+              >
+              <span class="lookup-cards cards" aria-hidden="true">
+                <span class="card highlight black"
+                  ><span class="card-rank black">9</span
+                  ><span class="card-suit black">♠</span
+                  ><span class="card-rank-bottom black">9</span></span
+                >
+                <span class="card highlight black"
+                  ><span class="card-rank black">8</span
+                  ><span class="card-suit black">♠</span
+                  ><span class="card-rank-bottom black">8</span></span
+                >
+                <span class="card highlight black"
+                  ><span class="card-rank black">7</span
+                  ><span class="card-suit black">♠</span
+                  ><span class="card-rank-bottom black">7</span></span
+                >
+                <span class="card highlight black"
+                  ><span class="card-rank black">6</span
+                  ><span class="card-suit black">♠</span
+                  ><span class="card-rank-bottom black">6</span></span
+                >
+                <span class="card highlight black"
+                  ><span class="card-rank black">5</span
+                  ><span class="card-suit black">♠</span
+                  ><span class="card-rank-bottom black">5</span></span
+                >
+              </span>
+            </button>
+            <button class="lookup-tile top-three" data-index="2" type="button">
+              <span class="lookup-rank">3</span>
+              <span class="lookup-name"
+                >Four of a Kind<span class="lookup-short"
+                  >Quads + kicker</span
+                ></span
+              >
+              <span class="lookup-cards cards" aria-hidden="true">
+                <span class="card highlight red"
+                  ><span class="card-rank red">Q</span
+                  ><span class="card-suit red">♦</span
+                  ><span class="card-rank-bottom red">Q</span></span
+                >
+                <span class="card highlight black"
+                  ><span class="card-rank black">Q</span
+                  ><span class="card-suit black">♣</span
+                  ><span class="card-rank-bottom black">Q</span></span
+                >
+                <span class="card highlight red"
+                  ><span class="card-rank red">Q</span
+                  ><span class="card-suit red">♥</span
+                  ><span class="card-rank-bottom red">Q</span></span
+                >
+                <span class="card highlight black"
+                  ><span class="card-rank black">Q</span
+                  ><span class="card-suit black">♠</span
+                  ><span class="card-rank-bottom black">Q</span></span
+                >
+                <span class="card"
+                  ><span class="card-rank black">3</span
+                  ><span class="card-suit black">♣</span
+                  ><span class="card-rank-bottom black">3</span></span
+                >
+              </span>
+            </button>
+            <button class="lookup-tile" data-index="3" type="button">
+              <span class="lookup-rank">4</span>
+              <span class="lookup-name"
+                >Full House<span class="lookup-short"
+                  >Three + a pair</span
+                ></span
+              >
+              <span class="lookup-cards cards" aria-hidden="true">
+                <span class="card highlight red"
+                  ><span class="card-rank red">J</span
+                  ><span class="card-suit red">♥</span
+                  ><span class="card-rank-bottom red">J</span></span
+                >
+                <span class="card highlight black"
+                  ><span class="card-rank black">J</span
+                  ><span class="card-suit black">♠</span
+                  ><span class="card-rank-bottom black">J</span></span
+                >
+                <span class="card highlight red"
+                  ><span class="card-rank red">J</span
+                  ><span class="card-suit red">♦</span
+                  ><span class="card-rank-bottom red">J</span></span
+                >
+                <span class="card highlight black"
+                  ><span class="card-rank black">4</span
+                  ><span class="card-suit black">♣</span
+                  ><span class="card-rank-bottom black">4</span></span
+                >
+                <span class="card highlight red"
+                  ><span class="card-rank red">4</span
+                  ><span class="card-suit red">♥</span
+                  ><span class="card-rank-bottom red">4</span></span
+                >
+              </span>
+            </button>
+            <button class="lookup-tile" data-index="4" type="button">
+              <span class="lookup-rank">5</span>
+              <span class="lookup-name"
+                >Flush<span class="lookup-short">Five same suit</span></span
+              >
+              <span class="lookup-cards cards" aria-hidden="true">
+                <span class="card highlight red"
+                  ><span class="card-rank red">A</span
+                  ><span class="card-suit red">♦</span
+                  ><span class="card-rank-bottom red">A</span></span
+                >
+                <span class="card highlight red"
+                  ><span class="card-rank red">J</span
+                  ><span class="card-suit red">♦</span
+                  ><span class="card-rank-bottom red">J</span></span
+                >
+                <span class="card highlight red"
+                  ><span class="card-rank red">9</span
+                  ><span class="card-suit red">♦</span
+                  ><span class="card-rank-bottom red">9</span></span
+                >
+                <span class="card highlight red"
+                  ><span class="card-rank red">6</span
+                  ><span class="card-suit red">♦</span
+                  ><span class="card-rank-bottom red">6</span></span
+                >
+                <span class="card highlight red"
+                  ><span class="card-rank red">2</span
+                  ><span class="card-suit red">♦</span
+                  ><span class="card-rank-bottom red">2</span></span
+                >
+              </span>
+            </button>
+            <button class="lookup-tile" data-index="5" type="button">
+              <span class="lookup-rank">6</span>
+              <span class="lookup-name"
+                >Straight<span class="lookup-short">Five in a row</span></span
+              >
+              <span class="lookup-cards cards" aria-hidden="true">
+                <span class="card highlight black"
+                  ><span class="card-rank black">10</span
+                  ><span class="card-suit black">♠</span
+                  ><span class="card-rank-bottom black">10</span></span
+                >
+                <span class="card highlight red"
+                  ><span class="card-rank red">9</span
+                  ><span class="card-suit red">♥</span
+                  ><span class="card-rank-bottom red">9</span></span
+                >
+                <span class="card highlight black"
+                  ><span class="card-rank black">8</span
+                  ><span class="card-suit black">♣</span
+                  ><span class="card-rank-bottom black">8</span></span
+                >
+                <span class="card highlight red"
+                  ><span class="card-rank red">7</span
+                  ><span class="card-suit red">♦</span
+                  ><span class="card-rank-bottom red">7</span></span
+                >
+                <span class="card highlight black"
+                  ><span class="card-rank black">6</span
+                  ><span class="card-suit black">♠</span
+                  ><span class="card-rank-bottom black">6</span></span
+                >
+              </span>
+            </button>
+            <button class="lookup-tile" data-index="6" type="button">
+              <span class="lookup-rank">7</span>
+              <span class="lookup-name"
+                >Three of a Kind<span class="lookup-short"
+                  >Trips or a set</span
+                ></span
+              >
+              <span class="lookup-cards cards" aria-hidden="true">
+                <span class="card highlight red"
+                  ><span class="card-rank red">8</span
+                  ><span class="card-suit red">♥</span
+                  ><span class="card-rank-bottom red">8</span></span
+                >
+                <span class="card highlight black"
+                  ><span class="card-rank black">8</span
+                  ><span class="card-suit black">♠</span
+                  ><span class="card-rank-bottom black">8</span></span
+                >
+                <span class="card highlight red"
+                  ><span class="card-rank red">8</span
+                  ><span class="card-suit red">♦</span
+                  ><span class="card-rank-bottom red">8</span></span
+                >
+                <span class="card"
+                  ><span class="card-rank black">K</span
+                  ><span class="card-suit black">♣</span
+                  ><span class="card-rank-bottom black">K</span></span
+                >
+                <span class="card"
+                  ><span class="card-rank red">2</span
+                  ><span class="card-suit red">♥</span
+                  ><span class="card-rank-bottom red">2</span></span
+                >
+              </span>
+            </button>
+            <button class="lookup-tile" data-index="7" type="button">
+              <span class="lookup-rank">8</span>
+              <span class="lookup-name"
+                >Two Pair<span class="lookup-short"
+                  >Two pairs + kicker</span
+                ></span
+              >
+              <span class="lookup-cards cards" aria-hidden="true">
+                <span class="card highlight black"
+                  ><span class="card-rank black">A</span
+                  ><span class="card-suit black">♠</span
+                  ><span class="card-rank-bottom black">A</span></span
+                >
+                <span class="card highlight red"
+                  ><span class="card-rank red">A</span
+                  ><span class="card-suit red">♥</span
+                  ><span class="card-rank-bottom red">A</span></span
+                >
+                <span class="card highlight black"
+                  ><span class="card-rank black">5</span
+                  ><span class="card-suit black">♣</span
+                  ><span class="card-rank-bottom black">5</span></span
+                >
+                <span class="card highlight red"
+                  ><span class="card-rank red">5</span
+                  ><span class="card-suit red">♦</span
+                  ><span class="card-rank-bottom red">5</span></span
+                >
+                <span class="card"
+                  ><span class="card-rank black">9</span
+                  ><span class="card-suit black">♠</span
+                  ><span class="card-rank-bottom black">9</span></span
+                >
+              </span>
+            </button>
+            <button class="lookup-tile" data-index="8" type="button">
+              <span class="lookup-rank">9</span>
+              <span class="lookup-name"
+                >One Pair<span class="lookup-short"
+                  >Pair + three cards</span
+                ></span
+              >
+              <span class="lookup-cards cards" aria-hidden="true">
+                <span class="card highlight red"
+                  ><span class="card-rank red">K</span
+                  ><span class="card-suit red">♦</span
+                  ><span class="card-rank-bottom red">K</span></span
+                >
+                <span class="card highlight black"
+                  ><span class="card-rank black">K</span
+                  ><span class="card-suit black">♣</span
+                  ><span class="card-rank-bottom black">K</span></span
+                >
+                <span class="card"
+                  ><span class="card-rank black">Q</span
+                  ><span class="card-suit black">♠</span
+                  ><span class="card-rank-bottom black">Q</span></span
+                >
+                <span class="card"
+                  ><span class="card-rank red">7</span
+                  ><span class="card-suit red">♥</span
+                  ><span class="card-rank-bottom red">7</span></span
+                >
+                <span class="card"
+                  ><span class="card-rank black">3</span
+                  ><span class="card-suit black">♣</span
+                  ><span class="card-rank-bottom black">3</span></span
+                >
+              </span>
+            </button>
+            <button class="lookup-tile" data-index="9" type="button">
+              <span class="lookup-rank">10</span>
+              <span class="lookup-name"
+                >High Card<span class="lookup-short"
+                  >Nothing connects</span
+                ></span
+              >
+              <span class="lookup-cards cards" aria-hidden="true">
+                <span class="card highlight black"
+                  ><span class="card-rank black">A</span
+                  ><span class="card-suit black">♠</span
+                  ><span class="card-rank-bottom black">A</span></span
+                >
+                <span class="card"
+                  ><span class="card-rank red">J</span
+                  ><span class="card-suit red">♥</span
+                  ><span class="card-rank-bottom red">J</span></span
+                >
+                <span class="card"
+                  ><span class="card-rank black">9</span
+                  ><span class="card-suit black">♣</span
+                  ><span class="card-rank-bottom black">9</span></span
+                >
+                <span class="card"
+                  ><span class="card-rank red">6</span
+                  ><span class="card-suit red">♦</span
+                  ><span class="card-rank-bottom red">6</span></span
+                >
+                <span class="card"
+                  ><span class="card-rank black">2</span
+                  ><span class="card-suit black">♠</span
+                  ><span class="card-rank-bottom black">2</span></span
+                >
+              </span>
+            </button>
+          </div>
+        </section>
+
+        <section class="carousel-section" aria-label="Hand details carousel">
+          <p class="section-label">Detail view</p>
+          <div class="carousel-panel">
+            <div class="carousel-controls">
+              <div class="carousel-nav">
+                <button
+                  class="carousel-btn"
+                  id="prev-btn"
+                  type="button"
+                  aria-label="Previous hand"
+                >
+                  &#8592;
+                </button>
+                <button
+                  class="carousel-btn"
+                  id="next-btn"
+                  type="button"
+                  aria-label="Next hand"
+                >
+                  &#8594;
+                </button>
+              </div>
+              <p class="carousel-counter">
+                <strong id="current-num">1</strong> / 10
+              </p>
+            </div>
+
+            <div class="carousel-viewport" id="carousel-viewport">
+              <div class="carousel-track" id="carousel-track">
+                <article class="carousel-slide">
+                  <p class="slide-rank">#1 — Strongest</p>
+                  <h2 class="slide-title">Royal Flush</h2>
+                  <p class="slide-desc">
+                    A, K, Q, J, 10 — all the same suit. The unbeatable hand.
+                  </p>
+                  <p class="slide-tip">
+                    Extremely rare — roughly 1 in 649,740 hands. Splits the pot
+                    if two players both hold one.
+                  </p>
+                  <div class="slide-cards-wrap">
+                    <span class="slide-cards-label">Example hand</span>
+                    <div class="cards">
+                      <div class="card highlight red">
+                        <span class="card-rank red">A</span
+                        ><span class="card-suit red">♥</span
+                        ><span class="card-rank-bottom red">A</span>
+                      </div>
+                      <div class="card highlight red">
+                        <span class="card-rank red">K</span
+                        ><span class="card-suit red">♥</span
+                        ><span class="card-rank-bottom red">K</span>
+                      </div>
+                      <div class="card highlight red">
+                        <span class="card-rank red">Q</span
+                        ><span class="card-suit red">♥</span
+                        ><span class="card-rank-bottom red">Q</span>
+                      </div>
+                      <div class="card highlight red">
+                        <span class="card-rank red">J</span
+                        ><span class="card-suit red">♥</span
+                        ><span class="card-rank-bottom red">J</span>
+                      </div>
+                      <div class="card highlight red">
+                        <span class="card-rank red">10</span
+                        ><span class="card-suit red">♥</span
+                        ><span class="card-rank-bottom red">10</span>
+                      </div>
+                    </div>
+                    <div class="slide-legend">
+                      <span
+                        ><i class="legend-dot highlight"></i> Makes the
+                        hand</span
+                      >
+                      <span><i class="legend-dot"></i> Kicker</span>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="carousel-slide">
+                  <p class="slide-rank">#2</p>
+                  <h2 class="slide-title">Straight Flush</h2>
+                  <p class="slide-desc">
+                    Five consecutive cards, all the same suit.
+                  </p>
+                  <p class="slide-tip">
+                    The highest card in the straight wins ties. A royal flush is
+                    simply an ace-high straight flush.
+                  </p>
+                  <div class="slide-cards-wrap">
+                    <span class="slide-cards-label">Example hand</span>
+                    <div class="cards">
+                      <div class="card highlight black">
+                        <span class="card-rank black">9</span
+                        ><span class="card-suit black">♠</span
+                        ><span class="card-rank-bottom black">9</span>
+                      </div>
+                      <div class="card highlight black">
+                        <span class="card-rank black">8</span
+                        ><span class="card-suit black">♠</span
+                        ><span class="card-rank-bottom black">8</span>
+                      </div>
+                      <div class="card highlight black">
+                        <span class="card-rank black">7</span
+                        ><span class="card-suit black">♠</span
+                        ><span class="card-rank-bottom black">7</span>
+                      </div>
+                      <div class="card highlight black">
+                        <span class="card-rank black">6</span
+                        ><span class="card-suit black">♠</span
+                        ><span class="card-rank-bottom black">6</span>
+                      </div>
+                      <div class="card highlight black">
+                        <span class="card-rank black">5</span
+                        ><span class="card-suit black">♠</span
+                        ><span class="card-rank-bottom black">5</span>
+                      </div>
+                    </div>
+                    <div class="slide-legend">
+                      <span
+                        ><i class="legend-dot highlight"></i> Makes the
+                        hand</span
+                      >
+                      <span><i class="legend-dot"></i> Kicker</span>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="carousel-slide">
+                  <p class="slide-rank">#3</p>
+                  <h2 class="slide-title">Four of a Kind</h2>
+                  <p class="slide-desc">
+                    Four cards of the same rank, plus any fifth card.
+                  </p>
+                  <p class="slide-tip">
+                    Also called "quads." Higher four-of-a-kind beats lower;
+                    kickers rarely matter.
+                  </p>
+                  <div class="slide-cards-wrap">
+                    <span class="slide-cards-label">Example hand</span>
+                    <div class="cards">
+                      <div class="card highlight red">
+                        <span class="card-rank red">Q</span
+                        ><span class="card-suit red">♦</span
+                        ><span class="card-rank-bottom red">Q</span>
+                      </div>
+                      <div class="card highlight black">
+                        <span class="card-rank black">Q</span
+                        ><span class="card-suit black">♣</span
+                        ><span class="card-rank-bottom black">Q</span>
+                      </div>
+                      <div class="card highlight red">
+                        <span class="card-rank red">Q</span
+                        ><span class="card-suit red">♥</span
+                        ><span class="card-rank-bottom red">Q</span>
+                      </div>
+                      <div class="card highlight black">
+                        <span class="card-rank black">Q</span
+                        ><span class="card-suit black">♠</span
+                        ><span class="card-rank-bottom black">Q</span>
+                      </div>
+                      <div class="card">
+                        <span class="card-rank black">3</span
+                        ><span class="card-suit black">♣</span
+                        ><span class="card-rank-bottom black">3</span>
+                      </div>
+                    </div>
+                    <div class="slide-legend">
+                      <span
+                        ><i class="legend-dot highlight"></i> Makes the
+                        hand</span
+                      >
+                      <span><i class="legend-dot"></i> Kicker</span>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="carousel-slide">
+                  <p class="slide-rank">#4</p>
+                  <h2 class="slide-title">Full House</h2>
+                  <p class="slide-desc">Three of a kind plus a pair.</p>
+                  <p class="slide-tip">
+                    Ranked by the three-of-a-kind first, then the pair. Jacks
+                    full of fours beats tens full of aces.
+                  </p>
+                  <div class="slide-cards-wrap">
+                    <span class="slide-cards-label">Example hand</span>
+                    <div class="cards">
+                      <div class="card highlight red">
+                        <span class="card-rank red">J</span
+                        ><span class="card-suit red">♥</span
+                        ><span class="card-rank-bottom red">J</span>
+                      </div>
+                      <div class="card highlight black">
+                        <span class="card-rank black">J</span
+                        ><span class="card-suit black">♠</span
+                        ><span class="card-rank-bottom black">J</span>
+                      </div>
+                      <div class="card highlight red">
+                        <span class="card-rank red">J</span
+                        ><span class="card-suit red">♦</span
+                        ><span class="card-rank-bottom red">J</span>
+                      </div>
+                      <div class="card highlight black">
+                        <span class="card-rank black">4</span
+                        ><span class="card-suit black">♣</span
+                        ><span class="card-rank-bottom black">4</span>
+                      </div>
+                      <div class="card highlight red">
+                        <span class="card-rank red">4</span
+                        ><span class="card-suit red">♥</span
+                        ><span class="card-rank-bottom red">4</span>
+                      </div>
+                    </div>
+                    <div class="slide-legend">
+                      <span
+                        ><i class="legend-dot highlight"></i> Makes the
+                        hand</span
+                      >
+                      <span><i class="legend-dot"></i> Kicker</span>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="carousel-slide">
+                  <p class="slide-rank">#5</p>
+                  <h2 class="slide-title">Flush</h2>
+                  <p class="slide-desc">
+                    Any five cards of the same suit, not in sequence.
+                  </p>
+                  <p class="slide-tip">
+                    Compare highest cards in order. Ace-high flush beats
+                    king-high flush, and so on.
+                  </p>
+                  <div class="slide-cards-wrap">
+                    <span class="slide-cards-label">Example hand</span>
+                    <div class="cards">
+                      <div class="card highlight red">
+                        <span class="card-rank red">A</span
+                        ><span class="card-suit red">♦</span
+                        ><span class="card-rank-bottom red">A</span>
+                      </div>
+                      <div class="card highlight red">
+                        <span class="card-rank red">J</span
+                        ><span class="card-suit red">♦</span
+                        ><span class="card-rank-bottom red">J</span>
+                      </div>
+                      <div class="card highlight red">
+                        <span class="card-rank red">9</span
+                        ><span class="card-suit red">♦</span
+                        ><span class="card-rank-bottom red">9</span>
+                      </div>
+                      <div class="card highlight red">
+                        <span class="card-rank red">6</span
+                        ><span class="card-suit red">♦</span
+                        ><span class="card-rank-bottom red">6</span>
+                      </div>
+                      <div class="card highlight red">
+                        <span class="card-rank red">2</span
+                        ><span class="card-suit red">♦</span
+                        ><span class="card-rank-bottom red">2</span>
+                      </div>
+                    </div>
+                    <div class="slide-legend">
+                      <span
+                        ><i class="legend-dot highlight"></i> Makes the
+                        hand</span
+                      >
+                      <span><i class="legend-dot"></i> Kicker</span>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="carousel-slide">
+                  <p class="slide-rank">#6</p>
+                  <h2 class="slide-title">Straight</h2>
+                  <p class="slide-desc">
+                    Five consecutive cards of mixed suits.
+                  </p>
+                  <p class="slide-tip">
+                    Ace can play high (A-K-Q-J-10) or low (5-4-3-2-A). The wheel
+                    is the lowest straight.
+                  </p>
+                  <div class="slide-cards-wrap">
+                    <span class="slide-cards-label">Example hand</span>
+                    <div class="cards">
+                      <div class="card highlight black">
+                        <span class="card-rank black">10</span
+                        ><span class="card-suit black">♠</span
+                        ><span class="card-rank-bottom black">10</span>
+                      </div>
+                      <div class="card highlight red">
+                        <span class="card-rank red">9</span
+                        ><span class="card-suit red">♥</span
+                        ><span class="card-rank-bottom red">9</span>
+                      </div>
+                      <div class="card highlight black">
+                        <span class="card-rank black">8</span
+                        ><span class="card-suit black">♣</span
+                        ><span class="card-rank-bottom black">8</span>
+                      </div>
+                      <div class="card highlight red">
+                        <span class="card-rank red">7</span
+                        ><span class="card-suit red">♦</span
+                        ><span class="card-rank-bottom red">7</span>
+                      </div>
+                      <div class="card highlight black">
+                        <span class="card-rank black">6</span
+                        ><span class="card-suit black">♠</span
+                        ><span class="card-rank-bottom black">6</span>
+                      </div>
+                    </div>
+                    <div class="slide-legend">
+                      <span
+                        ><i class="legend-dot highlight"></i> Makes the
+                        hand</span
+                      >
+                      <span><i class="legend-dot"></i> Kicker</span>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="carousel-slide">
+                  <p class="slide-rank">#7</p>
+                  <h2 class="slide-title">Three of a Kind</h2>
+                  <p class="slide-desc">
+                    Three cards of the same rank, plus two unrelated cards.
+                  </p>
+                  <p class="slide-tip">
+                    Often called a "set" when you hold a pocket pair, or "trips"
+                    when one is on the board.
+                  </p>
+                  <div class="slide-cards-wrap">
+                    <span class="slide-cards-label">Example hand</span>
+                    <div class="cards">
+                      <div class="card highlight red">
+                        <span class="card-rank red">8</span
+                        ><span class="card-suit red">♥</span
+                        ><span class="card-rank-bottom red">8</span>
+                      </div>
+                      <div class="card highlight black">
+                        <span class="card-rank black">8</span
+                        ><span class="card-suit black">♠</span
+                        ><span class="card-rank-bottom black">8</span>
+                      </div>
+                      <div class="card highlight red">
+                        <span class="card-rank red">8</span
+                        ><span class="card-suit red">♦</span
+                        ><span class="card-rank-bottom red">8</span>
+                      </div>
+                      <div class="card">
+                        <span class="card-rank black">K</span
+                        ><span class="card-suit black">♣</span
+                        ><span class="card-rank-bottom black">K</span>
+                      </div>
+                      <div class="card">
+                        <span class="card-rank red">2</span
+                        ><span class="card-suit red">♥</span
+                        ><span class="card-rank-bottom red">2</span>
+                      </div>
+                    </div>
+                    <div class="slide-legend">
+                      <span
+                        ><i class="legend-dot highlight"></i> Makes the
+                        hand</span
+                      >
+                      <span><i class="legend-dot"></i> Kicker</span>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="carousel-slide">
+                  <p class="slide-rank">#8</p>
+                  <h2 class="slide-title">Two Pair</h2>
+                  <p class="slide-desc">
+                    Two different pairs, plus one unrelated card.
+                  </p>
+                  <p class="slide-tip">
+                    Compare the higher pair first, then the lower pair, then the
+                    kicker.
+                  </p>
+                  <div class="slide-cards-wrap">
+                    <span class="slide-cards-label">Example hand</span>
+                    <div class="cards">
+                      <div class="card highlight black">
+                        <span class="card-rank black">A</span
+                        ><span class="card-suit black">♠</span
+                        ><span class="card-rank-bottom black">A</span>
+                      </div>
+                      <div class="card highlight red">
+                        <span class="card-rank red">A</span
+                        ><span class="card-suit red">♥</span
+                        ><span class="card-rank-bottom red">A</span>
+                      </div>
+                      <div class="card highlight black">
+                        <span class="card-rank black">5</span
+                        ><span class="card-suit black">♣</span
+                        ><span class="card-rank-bottom black">5</span>
+                      </div>
+                      <div class="card highlight red">
+                        <span class="card-rank red">5</span
+                        ><span class="card-suit red">♦</span
+                        ><span class="card-rank-bottom red">5</span>
+                      </div>
+                      <div class="card">
+                        <span class="card-rank black">9</span
+                        ><span class="card-suit black">♠</span
+                        ><span class="card-rank-bottom black">9</span>
+                      </div>
+                    </div>
+                    <div class="slide-legend">
+                      <span
+                        ><i class="legend-dot highlight"></i> Makes the
+                        hand</span
+                      >
+                      <span><i class="legend-dot"></i> Kicker</span>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="carousel-slide">
+                  <p class="slide-rank">#9</p>
+                  <h2 class="slide-title">One Pair</h2>
+                  <p class="slide-desc">
+                    Two cards of the same rank, plus three unrelated cards.
+                  </p>
+                  <p class="slide-tip">
+                    Higher pair wins. If pairs match, compare kickers from
+                    highest to lowest.
+                  </p>
+                  <div class="slide-cards-wrap">
+                    <span class="slide-cards-label">Example hand</span>
+                    <div class="cards">
+                      <div class="card highlight red">
+                        <span class="card-rank red">K</span
+                        ><span class="card-suit red">♦</span
+                        ><span class="card-rank-bottom red">K</span>
+                      </div>
+                      <div class="card highlight black">
+                        <span class="card-rank black">K</span
+                        ><span class="card-suit black">♣</span
+                        ><span class="card-rank-bottom black">K</span>
+                      </div>
+                      <div class="card">
+                        <span class="card-rank black">Q</span
+                        ><span class="card-suit black">♠</span
+                        ><span class="card-rank-bottom black">Q</span>
+                      </div>
+                      <div class="card">
+                        <span class="card-rank red">7</span
+                        ><span class="card-suit red">♥</span
+                        ><span class="card-rank-bottom red">7</span>
+                      </div>
+                      <div class="card">
+                        <span class="card-rank black">3</span
+                        ><span class="card-suit black">♣</span
+                        ><span class="card-rank-bottom black">3</span>
+                      </div>
+                    </div>
+                    <div class="slide-legend">
+                      <span
+                        ><i class="legend-dot highlight"></i> Makes the
+                        hand</span
+                      >
+                      <span><i class="legend-dot"></i> Kicker</span>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="carousel-slide">
+                  <p class="slide-rank">#10 — Weakest</p>
+                  <h2 class="slide-title">High Card</h2>
+                  <p class="slide-desc">
+                    No matching ranks or sequences — your highest card decides.
+                  </p>
+                  <p class="slide-tip">
+                    When nothing else connects, compare cards one by one from
+                    highest to lowest.
+                  </p>
+                  <div class="slide-cards-wrap">
+                    <span class="slide-cards-label">Example hand</span>
+                    <div class="cards">
+                      <div class="card highlight black">
+                        <span class="card-rank black">A</span
+                        ><span class="card-suit black">♠</span
+                        ><span class="card-rank-bottom black">A</span>
+                      </div>
+                      <div class="card">
+                        <span class="card-rank red">J</span
+                        ><span class="card-suit red">♥</span
+                        ><span class="card-rank-bottom red">J</span>
+                      </div>
+                      <div class="card">
+                        <span class="card-rank black">9</span
+                        ><span class="card-suit black">♣</span
+                        ><span class="card-rank-bottom black">9</span>
+                      </div>
+                      <div class="card">
+                        <span class="card-rank red">6</span
+                        ><span class="card-suit red">♦</span
+                        ><span class="card-rank-bottom red">6</span>
+                      </div>
+                      <div class="card">
+                        <span class="card-rank black">2</span
+                        ><span class="card-suit black">♠</span
+                        ><span class="card-rank-bottom black">2</span>
+                      </div>
+                    </div>
+                    <div class="slide-legend">
+                      <span
+                        ><i class="legend-dot highlight"></i> Makes the
+                        hand</span
+                      >
+                      <span><i class="legend-dot"></i> Kicker</span>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </div>
+
+            <div
+              class="carousel-dots"
+              id="carousel-dots"
+              aria-label="Slide navigation"
+            ></div>
+          </div>
+        </section>
+      </main>
+    </section>
+
+    <section class="panel" id="panel-evaluate">
+      <div class="tool-main">
+        <div class="tool-panel">
+          <div class="tool-header">
+            <h2>Hand Evaluator</h2>
+            <div class="tool-actions">
+              <button class="action-btn" id="eval-random" type="button">
+                Random hand
+              </button>
+              <button class="action-btn" id="eval-clear" type="button">
+                Clear
+              </button>
+            </div>
+          </div>
+          <p class="tool-hint">
+            Pick 2 hole cards + up to 5 board cards from the deck below. Tap a
+            slot to clear it. Needs at least 5 cards total.
+          </p>
+          <p class="slot-label">Your cards (hole + board)</p>
+          <div id="eval-slots"></div>
+          <p class="slot-label">Deck — click a card to place it</p>
+          <div id="eval-deck"></div>
+          <div class="result-box" id="eval-result" hidden>
+            <p class="result-hand-name"></p>
+            <p class="result-detail"></p>
+            <div class="result-section">
+              <p class="slot-label">Hole cards</p>
+              <div class="result-hole"></div>
+            </div>
+            <div class="result-section">
+              <p class="slot-label">Board</p>
+              <div class="result-board"></div>
+            </div>
+            <div class="result-section">
+              <p class="slot-label">Best five (gold = counts)</p>
+              <div class="result-best"></div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
-    <section class="carousel-section" aria-label="Hand details carousel">
-      <p class="section-label">Detail view</p>
-      <div class="carousel-panel">
-        <div class="carousel-controls">
-          <div class="carousel-nav">
-            <button class="carousel-btn" id="prev-btn" type="button" aria-label="Previous hand">&#8592;</button>
-            <button class="carousel-btn" id="next-btn" type="button" aria-label="Next hand">&#8594;</button>
+    <section class="panel" id="panel-compare">
+      <div class="tool-main">
+        <div class="tool-panel">
+          <div class="tool-header">
+            <h2>Who Wins?</h2>
+            <div class="tool-actions">
+              <button class="action-btn" id="cmp-random" type="button">
+                Random deal
+              </button>
+              <button class="action-btn" id="cmp-clear" type="button">
+                Clear
+              </button>
+            </div>
           </div>
-          <p class="carousel-counter"><strong id="current-num">1</strong> / 10</p>
-        </div>
-
-        <div class="carousel-viewport" id="carousel-viewport">
-          <div class="carousel-track" id="carousel-track">
-
-            <article class="carousel-slide">
-              <p class="slide-rank">#1 — Strongest</p>
-              <h2 class="slide-title">Royal Flush</h2>
-              <p class="slide-desc">A, K, Q, J, 10 — all the same suit. The unbeatable hand.</p>
-              <p class="slide-tip">Extremely rare — roughly 1 in 649,740 hands. Splits the pot if two players both hold one.</p>
-              <div class="slide-cards-wrap">
-                <span class="slide-cards-label">Example hand</span>
-                <div class="cards">
-                  <div class="card highlight red"><span class="card-rank red">A</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">A</span></div>
-                  <div class="card highlight red"><span class="card-rank red">K</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">K</span></div>
-                  <div class="card highlight red"><span class="card-rank red">Q</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">Q</span></div>
-                  <div class="card highlight red"><span class="card-rank red">J</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">J</span></div>
-                  <div class="card highlight red"><span class="card-rank red">10</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">10</span></div>
-                </div>
-                <div class="slide-legend">
-                  <span><i class="legend-dot highlight"></i> Makes the hand</span>
-                  <span><i class="legend-dot"></i> Kicker</span>
-                </div>
+          <p class="tool-hint">
+            Set both players' hole cards and the full board (9 cards). Gold
+            cards are each player's best five.
+          </p>
+          <div class="compare-players">
+            <div class="player-box">
+              <h3>Player 1</h3>
+              <div id="cmp-p1-slots"></div>
+            </div>
+            <div class="player-box">
+              <h3>Player 2</h3>
+              <div id="cmp-p2-slots"></div>
+            </div>
+          </div>
+          <p class="slot-label">Board</p>
+          <div id="cmp-board-slots"></div>
+          <p class="slot-label">Deck</p>
+          <div id="cmp-deck"></div>
+          <div class="result-box" id="cmp-result" hidden>
+            <p class="cmp-verdict"></p>
+            <p class="cmp-detail"></p>
+            <div class="cmp-hands">
+              <div>
+                <p class="cmp-hand-label">Player 1</p>
+                <p class="cmp-hand-name cmp-p1-name"></p>
+                <div class="cmp-p1-cards"></div>
               </div>
-            </article>
-
-            <article class="carousel-slide">
-              <p class="slide-rank">#2</p>
-              <h2 class="slide-title">Straight Flush</h2>
-              <p class="slide-desc">Five consecutive cards, all the same suit.</p>
-              <p class="slide-tip">The highest card in the straight wins ties. A royal flush is simply an ace-high straight flush.</p>
-              <div class="slide-cards-wrap">
-                <span class="slide-cards-label">Example hand</span>
-                <div class="cards">
-                  <div class="card highlight black"><span class="card-rank black">9</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">9</span></div>
-                  <div class="card highlight black"><span class="card-rank black">8</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">8</span></div>
-                  <div class="card highlight black"><span class="card-rank black">7</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">7</span></div>
-                  <div class="card highlight black"><span class="card-rank black">6</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">6</span></div>
-                  <div class="card highlight black"><span class="card-rank black">5</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">5</span></div>
-                </div>
-                <div class="slide-legend">
-                  <span><i class="legend-dot highlight"></i> Makes the hand</span>
-                  <span><i class="legend-dot"></i> Kicker</span>
-                </div>
+              <div>
+                <p class="cmp-hand-label">Player 2</p>
+                <p class="cmp-hand-name cmp-p2-name"></p>
+                <div class="cmp-p2-cards"></div>
               </div>
-            </article>
-
-            <article class="carousel-slide">
-              <p class="slide-rank">#3</p>
-              <h2 class="slide-title">Four of a Kind</h2>
-              <p class="slide-desc">Four cards of the same rank, plus any fifth card.</p>
-              <p class="slide-tip">Also called "quads." Higher four-of-a-kind beats lower; kickers rarely matter.</p>
-              <div class="slide-cards-wrap">
-                <span class="slide-cards-label">Example hand</span>
-                <div class="cards">
-                  <div class="card highlight red"><span class="card-rank red">Q</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">Q</span></div>
-                  <div class="card highlight black"><span class="card-rank black">Q</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">Q</span></div>
-                  <div class="card highlight red"><span class="card-rank red">Q</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">Q</span></div>
-                  <div class="card highlight black"><span class="card-rank black">Q</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">Q</span></div>
-                  <div class="card"><span class="card-rank black">3</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">3</span></div>
-                </div>
-                <div class="slide-legend">
-                  <span><i class="legend-dot highlight"></i> Makes the hand</span>
-                  <span><i class="legend-dot"></i> Kicker</span>
-                </div>
-              </div>
-            </article>
-
-            <article class="carousel-slide">
-              <p class="slide-rank">#4</p>
-              <h2 class="slide-title">Full House</h2>
-              <p class="slide-desc">Three of a kind plus a pair.</p>
-              <p class="slide-tip">Ranked by the three-of-a-kind first, then the pair. Jacks full of fours beats tens full of aces.</p>
-              <div class="slide-cards-wrap">
-                <span class="slide-cards-label">Example hand</span>
-                <div class="cards">
-                  <div class="card highlight red"><span class="card-rank red">J</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">J</span></div>
-                  <div class="card highlight black"><span class="card-rank black">J</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">J</span></div>
-                  <div class="card highlight red"><span class="card-rank red">J</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">J</span></div>
-                  <div class="card highlight black"><span class="card-rank black">4</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">4</span></div>
-                  <div class="card highlight red"><span class="card-rank red">4</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">4</span></div>
-                </div>
-                <div class="slide-legend">
-                  <span><i class="legend-dot highlight"></i> Makes the hand</span>
-                  <span><i class="legend-dot"></i> Kicker</span>
-                </div>
-              </div>
-            </article>
-
-            <article class="carousel-slide">
-              <p class="slide-rank">#5</p>
-              <h2 class="slide-title">Flush</h2>
-              <p class="slide-desc">Any five cards of the same suit, not in sequence.</p>
-              <p class="slide-tip">Compare highest cards in order. Ace-high flush beats king-high flush, and so on.</p>
-              <div class="slide-cards-wrap">
-                <span class="slide-cards-label">Example hand</span>
-                <div class="cards">
-                  <div class="card highlight red"><span class="card-rank red">A</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">A</span></div>
-                  <div class="card highlight red"><span class="card-rank red">J</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">J</span></div>
-                  <div class="card highlight red"><span class="card-rank red">9</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">9</span></div>
-                  <div class="card highlight red"><span class="card-rank red">6</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">6</span></div>
-                  <div class="card highlight red"><span class="card-rank red">2</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">2</span></div>
-                </div>
-                <div class="slide-legend">
-                  <span><i class="legend-dot highlight"></i> Makes the hand</span>
-                  <span><i class="legend-dot"></i> Kicker</span>
-                </div>
-              </div>
-            </article>
-
-            <article class="carousel-slide">
-              <p class="slide-rank">#6</p>
-              <h2 class="slide-title">Straight</h2>
-              <p class="slide-desc">Five consecutive cards of mixed suits.</p>
-              <p class="slide-tip">Ace can play high (A-K-Q-J-10) or low (5-4-3-2-A). The wheel is the lowest straight.</p>
-              <div class="slide-cards-wrap">
-                <span class="slide-cards-label">Example hand</span>
-                <div class="cards">
-                  <div class="card highlight black"><span class="card-rank black">10</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">10</span></div>
-                  <div class="card highlight red"><span class="card-rank red">9</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">9</span></div>
-                  <div class="card highlight black"><span class="card-rank black">8</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">8</span></div>
-                  <div class="card highlight red"><span class="card-rank red">7</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">7</span></div>
-                  <div class="card highlight black"><span class="card-rank black">6</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">6</span></div>
-                </div>
-                <div class="slide-legend">
-                  <span><i class="legend-dot highlight"></i> Makes the hand</span>
-                  <span><i class="legend-dot"></i> Kicker</span>
-                </div>
-              </div>
-            </article>
-
-            <article class="carousel-slide">
-              <p class="slide-rank">#7</p>
-              <h2 class="slide-title">Three of a Kind</h2>
-              <p class="slide-desc">Three cards of the same rank, plus two unrelated cards.</p>
-              <p class="slide-tip">Often called a "set" when you hold a pocket pair, or "trips" when one is on the board.</p>
-              <div class="slide-cards-wrap">
-                <span class="slide-cards-label">Example hand</span>
-                <div class="cards">
-                  <div class="card highlight red"><span class="card-rank red">8</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">8</span></div>
-                  <div class="card highlight black"><span class="card-rank black">8</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">8</span></div>
-                  <div class="card highlight red"><span class="card-rank red">8</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">8</span></div>
-                  <div class="card"><span class="card-rank black">K</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">K</span></div>
-                  <div class="card"><span class="card-rank red">2</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">2</span></div>
-                </div>
-                <div class="slide-legend">
-                  <span><i class="legend-dot highlight"></i> Makes the hand</span>
-                  <span><i class="legend-dot"></i> Kicker</span>
-                </div>
-              </div>
-            </article>
-
-            <article class="carousel-slide">
-              <p class="slide-rank">#8</p>
-              <h2 class="slide-title">Two Pair</h2>
-              <p class="slide-desc">Two different pairs, plus one unrelated card.</p>
-              <p class="slide-tip">Compare the higher pair first, then the lower pair, then the kicker.</p>
-              <div class="slide-cards-wrap">
-                <span class="slide-cards-label">Example hand</span>
-                <div class="cards">
-                  <div class="card highlight black"><span class="card-rank black">A</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">A</span></div>
-                  <div class="card highlight red"><span class="card-rank red">A</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">A</span></div>
-                  <div class="card highlight black"><span class="card-rank black">5</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">5</span></div>
-                  <div class="card highlight red"><span class="card-rank red">5</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">5</span></div>
-                  <div class="card"><span class="card-rank black">9</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">9</span></div>
-                </div>
-                <div class="slide-legend">
-                  <span><i class="legend-dot highlight"></i> Makes the hand</span>
-                  <span><i class="legend-dot"></i> Kicker</span>
-                </div>
-              </div>
-            </article>
-
-            <article class="carousel-slide">
-              <p class="slide-rank">#9</p>
-              <h2 class="slide-title">One Pair</h2>
-              <p class="slide-desc">Two cards of the same rank, plus three unrelated cards.</p>
-              <p class="slide-tip">Higher pair wins. If pairs match, compare kickers from highest to lowest.</p>
-              <div class="slide-cards-wrap">
-                <span class="slide-cards-label">Example hand</span>
-                <div class="cards">
-                  <div class="card highlight red"><span class="card-rank red">K</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">K</span></div>
-                  <div class="card highlight black"><span class="card-rank black">K</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">K</span></div>
-                  <div class="card"><span class="card-rank black">Q</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">Q</span></div>
-                  <div class="card"><span class="card-rank red">7</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">7</span></div>
-                  <div class="card"><span class="card-rank black">3</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">3</span></div>
-                </div>
-                <div class="slide-legend">
-                  <span><i class="legend-dot highlight"></i> Makes the hand</span>
-                  <span><i class="legend-dot"></i> Kicker</span>
-                </div>
-              </div>
-            </article>
-
-            <article class="carousel-slide">
-              <p class="slide-rank">#10 — Weakest</p>
-              <h2 class="slide-title">High Card</h2>
-              <p class="slide-desc">No matching ranks or sequences — your highest card decides.</p>
-              <p class="slide-tip">When nothing else connects, compare cards one by one from highest to lowest.</p>
-              <div class="slide-cards-wrap">
-                <span class="slide-cards-label">Example hand</span>
-                <div class="cards">
-                  <div class="card highlight black"><span class="card-rank black">A</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">A</span></div>
-                  <div class="card"><span class="card-rank red">J</span><span class="card-suit red">♥</span><span class="card-rank-bottom red">J</span></div>
-                  <div class="card"><span class="card-rank black">9</span><span class="card-suit black">♣</span><span class="card-rank-bottom black">9</span></div>
-                  <div class="card"><span class="card-rank red">6</span><span class="card-suit red">♦</span><span class="card-rank-bottom red">6</span></div>
-                  <div class="card"><span class="card-rank black">2</span><span class="card-suit black">♠</span><span class="card-rank-bottom black">2</span></div>
-                </div>
-                <div class="slide-legend">
-                  <span><i class="legend-dot highlight"></i> Makes the hand</span>
-                  <span><i class="legend-dot"></i> Kicker</span>
-                </div>
-              </div>
-            </article>
-
+            </div>
           </div>
         </div>
-
-        <div class="carousel-dots" id="carousel-dots" aria-label="Slide navigation"></div>
       </div>
     </section>
-    <p class="print-note no-print">Tip: use the Print button for a pocket cheat sheet of the 2×5 grid.</p>
-  </main>
-  </section>
 
-  <section class="panel" id="panel-evaluate">
-    <div class="tool-main">
-      <div class="tool-panel">
-        <div class="tool-header">
-          <h2>Hand Evaluator</h2>
-          <div class="tool-actions">
-            <button class="action-btn" id="eval-random" type="button">Random hand</button>
-            <button class="action-btn" id="eval-clear" type="button">Clear</button>
+    <section class="panel" id="panel-quiz">
+      <div class="tool-main">
+        <div class="tool-panel">
+          <div class="tool-header"><h2>Hand Quiz</h2></div>
+          <div class="quiz-stats">
+            <span>Score: <strong id="quiz-score">0 / 0</strong></span>
+            <span>Streak: <strong id="quiz-streak">0</strong></span>
+            <span>Best streak: <strong id="quiz-best">0</strong></span>
           </div>
-        </div>
-        <p class="tool-hint">Pick 2 hole cards + up to 5 board cards from the deck below. Tap a slot to clear it. Needs at least 5 cards total.</p>
-        <p class="slot-label">Your cards (hole + board)</p>
-        <div id="eval-slots"></div>
-        <p class="slot-label">Deck — click a card to place it</p>
-        <div id="eval-deck"></div>
-        <div class="result-box" id="eval-result" hidden>
-          <p class="result-hand-name"></p>
-          <p class="result-detail"></p>
-          <div class="result-section">
-            <p class="slot-label">Hole cards</p>
-            <div class="result-hole"></div>
-          </div>
-          <div class="result-section">
-            <p class="slot-label">Board</p>
-            <div class="result-board"></div>
-          </div>
-          <div class="result-section">
-            <p class="slot-label">Best five (gold = counts)</p>
-            <div class="result-best"></div>
-          </div>
+          <p class="tool-hint">
+            Seven cards are dealt — pick the best 5-card hand.
+          </p>
+          <div id="quiz-cards"></div>
+          <div class="quiz-options" id="quiz-options"></div>
+          <p class="quiz-feedback" id="quiz-feedback" hidden></p>
+          <button
+            class="action-btn"
+            id="quiz-next"
+            type="button"
+            hidden
+            style="margin-top: 1rem"
+          >
+            Next hand
+          </button>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="panel" id="panel-compare">
-    <div class="tool-main">
-      <div class="tool-panel">
-        <div class="tool-header">
-          <h2>Who Wins?</h2>
-          <div class="tool-actions">
-            <button class="action-btn" id="cmp-random" type="button">Random deal</button>
-            <button class="action-btn" id="cmp-clear" type="button">Clear</button>
-          </div>
+    <section class="panel" id="panel-odds">
+      <div class="tool-main">
+        <div class="tool-panel">
+          <p class="section-label">Hand probabilities</p>
+          <p class="tool-hint">
+            Approximate chance of making each hand by the river (7 cards from a
+            full deck).
+          </p>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Hand</th>
+                <th>Probability</th>
+                <th>Odds</th>
+              </tr>
+            </thead>
+            <tbody id="odds-body"></tbody>
+          </table>
         </div>
-        <p class="tool-hint">Set both players' hole cards and the full board (9 cards). Gold cards are each player's best five.</p>
-        <div class="compare-players">
-          <div class="player-box">
-            <h3>Player 1</h3>
-            <div id="cmp-p1-slots"></div>
-          </div>
-          <div class="player-box">
-            <h3>Player 2</h3>
-            <div id="cmp-p2-slots"></div>
-          </div>
-        </div>
-        <p class="slot-label">Board</p>
-        <div id="cmp-board-slots"></div>
-        <p class="slot-label">Deck</p>
-        <div id="cmp-deck"></div>
-        <div class="result-box" id="cmp-result" hidden>
-          <p class="cmp-verdict"></p>
-          <p class="cmp-detail"></p>
-          <div class="cmp-hands">
-            <div>
-              <p class="cmp-hand-label">Player 1</p>
-              <p class="cmp-hand-name cmp-p1-name"></p>
-              <div class="cmp-p1-cards"></div>
-            </div>
-            <div>
-              <p class="cmp-hand-label">Player 2</p>
-              <p class="cmp-hand-name cmp-p2-name"></p>
-              <div class="cmp-p2-cards"></div>
-            </div>
-          </div>
+        <div class="tool-panel">
+          <p class="section-label">Common draws (rule of 2 and 4)</p>
+          <p class="tool-hint">
+            Quick estimates: outs × 2 ≈ turn %, outs × 4 ≈ turn+river %.
+          </p>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Draw</th>
+                <th>Turn</th>
+                <th>River only</th>
+                <th>Turn + river</th>
+              </tr>
+            </thead>
+            <tbody id="outs-body"></tbody>
+          </table>
         </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <section class="panel" id="panel-quiz">
-    <div class="tool-main">
-      <div class="tool-panel">
-        <div class="tool-header"><h2>Hand Quiz</h2></div>
-        <div class="quiz-stats">
-          <span>Score: <strong id="quiz-score">0 / 0</strong></span>
-          <span>Streak: <strong id="quiz-streak">0</strong></span>
-          <span>Best streak: <strong id="quiz-best">0</strong></span>
-        </div>
-        <p class="tool-hint">Seven cards are dealt — pick the best 5-card hand.</p>
-        <div id="quiz-cards"></div>
-        <div class="quiz-options" id="quiz-options"></div>
-        <p class="quiz-feedback" id="quiz-feedback" hidden></p>
-        <button class="action-btn" id="quiz-next" type="button" hidden style="margin-top:1rem">Next hand</button>
-      </div>
-    </div>
-  </section>
-
-  <section class="panel" id="panel-odds">
-    <div class="tool-main">
-      <div class="tool-panel">
-        <p class="section-label">Hand probabilities</p>
-        <p class="tool-hint">Approximate chance of making each hand by the river (7 cards from a full deck).</p>
-        <table class="data-table">
-          <thead>
-            <tr><th>#</th><th>Hand</th><th>Probability</th><th>Odds</th></tr>
-          </thead>
-          <tbody id="odds-body"></tbody>
-        </table>
-      </div>
-      <div class="tool-panel">
-        <p class="section-label">Common draws (rule of 2 and 4)</p>
-        <p class="tool-hint">Quick estimates: outs × 2 ≈ turn %, outs × 4 ≈ turn+river %.</p>
-        <table class="data-table">
-          <thead>
-            <tr><th>Draw</th><th>Turn</th><th>River only</th><th>Turn + river</th></tr>
-          </thead>
-          <tbody id="outs-body"></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <footer>
-    <p>Best five cards from your two hole cards and five community cards</p>
-  </footer>
-
-  <script src="poker.js"></script>
-
-</body>
+    <script src="poker.js"></script>
+  </body>
 </html>
