@@ -306,6 +306,8 @@ function initCardPicker({ slotsEl, deckEl, onChange, slotCount }) {
     deckEl.appendChild(grid);
   }
 
+  render();
+
   return {
     clear() {
       slots = Array(slotCount).fill(null);
