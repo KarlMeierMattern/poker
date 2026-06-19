@@ -1,0 +1,18 @@
+{
+  "name": "Texas Hold'em Poker Toolkit",
+  "short_name": "Poker Hands",
+  "description": "Hand rankings, evaluator, compare, quiz, and odds for Texas Hold'em.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#08261c",
+  "theme_color": "#0d3b2e",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
